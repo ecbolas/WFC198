@@ -1,0 +1,26 @@
+---
+title: "WFC198_Bolas_Hwk3"
+author: "Ellie Bolas"
+date: "April 23, 2018"
+output: html_document
+---
+
+##Logitistic Regressions Homework
+==============================================
+
+Task 1: Simulating logistic regression data: Simulate data for a logistic regression with one predictor variable
+
+a)	The intercept of the linear predictor is -0.2 (that is, minus 0.2); the slope (describing the effect of covariate X) is 1.3. The sample size (number of data points) is 30. (1 Pt)
+```{r}
+
+beta0 <- (-0.2) #intercept
+beta1 <- 1.3 #slope
+n <- 30 #sample size
+```
+
+b)	The predictor variable, X, comes from a uniform distribution with lower limit -1 (that is, minus 1) and upper limit 1. (1 Pt)
+
+
+
+c)	Calculate the expected values both on the logit and on the response (i.e., probability) scale (2 Pts)
+d)	Use the rbinom() function to generate the response variable Y. Note that you need to specify three arguments in rbinom(): how many observations to generate (n), the number of Bernoulli trials for each of these observations (which is 1, because each data point in a logistic regression is Binary), and the probability (ie, expected value on the natural scale). Use ?rbinom for more help. (2 Pts).

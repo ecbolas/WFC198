@@ -1,0 +1,172 @@
+---
+title: "WFC198_Lab3"
+author: "Ellie Bolas"
+date: "April 17, 2018"
+output: html_document
+---
+## GENERALIZED LINEAR MODELS
+GLMS: linear models (normal), logistic regression (Bernoulli), poisson regression 
+
+#Simulating Samples and Normal Distribution
+Simulate a sample from the population that is characterized by true population parameters is rnorm
+```{r}
+mu <- 80 #pop. mean
+sigma <- 10 #pop. standard deviation
+
+#take 10 samples and look at distribution with rnorm. Everytime you use rnorm, it will draw 10 different samples
+sample1 <- rnorm(10, mu, sigma) 
+hist(sample1)
+
+#rnorm for normal distribution
+sample2<- rnorm(20, mu, sigma)
+hist(sample2)
+sample3<-rnorm(50, mu, sigma)
+hist(sample3)
+sample4 <- rnorm(80, mu, sigma)
+hist(sample4)
+sample5 <- rnorm(100, mu, sigma)
+hist(sample5)
+
+#need to calculate difference between sample and population means
+#make a vector of means
+means <- c(mean(sample1), mean(sample2), mean(sample3), mean(sample4), mean(sample5))
+
+diff<-means-mu
+diff
+
+#closest estimation to the actual mean
+which(abs(diff) == min(abs(diff)))
+#use which to ask which, use abs to get absolute value of difference
+
+```
+
+#Linear Regression
+```{r}
+#set.seed to make sure that when we draw a random number, it draws the same random numbers for everyone each time
+set.seed(1)
+
+#set parameters
+n <- 50
+beta0 <- 1.5 #intercept
+beta1 <- 0.5 #slope
+error.var <- 2 #residual error
+
+#use uniform distribution to generate x, using runif
+X <- runif(n, 0, 10) #put in paramters of min=0, max=10
+head(X)
+
+#relationship with X is modeled for the expected values of Y, next step is to generate expected values for Y based on a linear relationship with x
+exp.y <- beta0 + beta1*X
+exp.y #these are all the points of expected y that would fall on the line
+
+#remember around the line, there is normally distributed random error
+#now get the scatter around the line for random deviations, so use rnorm
+
+Y <- rnorm(n, exp.y, sqrt(error.var)) #n is sample size, mu is the expected, sigma is the standard deviation, variance is sigma squared, we had variance, so we needed sqrt
+head(Y)
+#using rnorm to generate a random point (error) for each x at the expected y
+plot(X, exp.y) #exp.y is mean of random deviation around line
+plot(X,Y)
+
+#here, used true pop. parameters to simulate data/observations, can now proceed as though you don't know the true paramters
+#useful exercise bc can help you design your study
+
+#fit data with lm
+?lm
+model1 <- lm(Y~X) #r automatically know the intercept is included
+model1 #tells estimates of parameters (using random data against X)
+summary(model1)
+#res. standard error: error variance
+str(model1)
+#tells you predicted values of y, can use to plot results, or use predict.lm
+
+#generate a new set of x values, now look at y does given the new x values
+
+X.new <- data.frame(X = seq(0,10,0.2))
+head(X.new)
+dim(X.new) #now have 51 rows
+
+Y.exp <- predict.lm(model1, X.new, interval = "confidence") 
+head(Y.exp)
+
+#plot first column against x-values in x.new using type l
+plot(X.new$X, Y.exp[,1], type = "l", xlab = "x", ylab = "y" )
+points(X.new$X, Y.exp[,2], type = "l", lty = 2)
+points(X.new$X, Y.exp[,3], type = "l", lty = 2)
+points(X,Y)
+#this is all wrong, I must have messed up parameters
+
+```
+
+
+#Poisson Regression
+```{r}
+#expected value is now the poisson mean
+#need to use log as a link function
+#generate data from a poisson distribution using rpois
+set.seed(1)
+
+#need to get lambda
+log.lam <- beta0 + beta1*X
+lam <- exp(log.lam)
+
+#generate poisson distribution for generated data
+y.p <- rpois(n, lam)
+head(y.p)
+
+mod2 <- glm(y.p~X, family = "poisson") #for glm, need the formular (y~x), and also need to say the family of models you want to us
+summary(mod2)
+#look at coefficient estimation
+# zvalue is like tvalue
+#using the random scatter of observations that we simulated, got paramters very similar to the true
+
+#predict expected y values given our model
+
+Yp.exp <- predict.glm(mod2, X.new, interval = "confidence")
+plot(X.new$X, Yp.exp, type = "l") #looks linear because plotted with log
+
+#back-transformed y values
+#exp is opposite of log, type=response automatically back-transforms
+Yp.exp2 <- predict(mod2, X.new, type = "response", se.fit = TRUE)
+structure(Yp.exp2)
+Yp.exp2$se.fit #gives all the standard errors, but they can't really be back-transformed
+plot(X.new$X, Yp.exp2$fit, type = "l")
+
+```
+
+#Logistic Regression
+Relationship with repdictor variable is modeled on the expected value(success probaility) of the Bernoulli random variable
+
+```{r}
+getwd()
+birddata <- read.csv("WFC198/Lab3_Hwk3/BirdsBurn.csv")
+head(birddata)
+#burned column is 0's and 1's
+
+#y data is Detected column, x data is Burned column, can use this in making glm
+mod3 <- glm(Detected~Burned, data = birddata, family = "binomial")
+summary(mod3)
+#beta0 = 2.2
+#slop= 0.2, is no significant, p value >0.05
+
+#parameteres on link function scale, need to back-transform to undestand things on probabiliy scale
+#logit(p) in burned = intercept + slope
+#logit (p) unburned = intercept
+
+lp.burned <- 2.2246 + 0.2321
+lp.unburned <- 2.2246
+
+p.burned <- exp(lp.burned)/(exp(lp.burned) + 1) #exponent of lp.burned bc that's oppositive of link
+p.unburned <- exp(lp.unburned)/(exp(lp.unburned) + 1)
+
+burn.new <- data.frame(Burned = c(0,1)) #generate new burn data
+Y1.p <- predict.glm(mod3, burn.new, type = "response", se.fit = T)
+
+plot(1:2, Y1.p$fit, pch = 19, xlim=c(0.5, 2.5), ylim=c(0.8,1), axes = FALSE) #x is just values rom 1-2, y values are the predicted
+axis(side =2)
+axis(side = 1, at = c(1,2), label = c("Unburned", "Burned"))
+
+
+```
+
+

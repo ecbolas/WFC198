@@ -1,0 +1,102 @@
+---
+title: "WFC198_Bolas_Hwk2"
+author: "Ellie Bolas"
+date: "April 17, 2018"
+output:
+  html_document: default
+  word_document: default
+---
+##Question 1: Missing data 
+Dealing with NAs
+```{r}
+vec<-c(0,NA,NA,9,13,5,6,7,17,NA,3,19,2,NA,12)
+
+#a)	 calculate the sum of all elements in the vector 
+sum(vec) #returns NA
+sum(vec, na.rm = TRUE)
+
+
+#b)	 determine the number of elements in this vector that are not NA 
+#find out how many are NA
+vecNA <- sum(is.na(vec))
+vecNA
+
+#length tells you how many elements total
+length(vec)- vecNA #tells you elements that aren't NA
+
+
+#c)	Create a new vector, vec2, that is a subset of vec, specifically, that contains the first five non-NA elements of vec. Do so using subsetting and R commands. (2 Pts) 
+head((na.exclude(vec)), 5)
+
+```
+
+##Question 2: Building a two-population model using a for-loop 
+
+N_1 (t)=N_1 (t-1)*(1+r_1 )*pi_1,1+N_2 (t-1)*(1+r_2 )*pi_2,1
+N_2 (t)=N_2 (t-1)*(1+r_2 )*pi_2,2+N_1 (t-1)*(1+r_1 )*pi_1,2
+
+In these equations, N1 and N2 are the sizes of population 1 and 2, respectively; t indicates the time step; r1 and r2 are the per-capita rates of change for both populations; and the parameters pi indicate the proportion of the population dispersing to the other population.
+
+a) Translate these mathematical expressions into R code and combine them with a for-loop to simulate the size of population 1 and 2 for 50 time steps. Input parameters:
+N1 at time 1: 20 
+N2 at time 1: 50 
+r1: -0.1 #per captia rates of change
+r2: 0.1 #per capita rates of change
+pi_1,2: 0.1 #migration from 1 -> 2
+pi_2,1: 0.2 #migration from 2-> 1
+
+```{r}
+#a
+tsp <- 50 #50 times steps
+n1 <- rep(NA,tsp) #pop. at each time step, we need a placeholder that is empty for all time steps
+n2 <- rep(NA,tsp)
+n1[1] <- 20 #number in pop. 1 at tsp 1
+n2[1] <- 50 #number in pop. 2 at tsp 1
+r1 <- -0.1 #rate change pop. 1
+r2 <- 0.1 #rate change pop. 2
+immpop1 <- 0.1 #immigration from pop1 -> pop2
+immpop2 <- 0.2 #immigration from pop2 -> pop1
+staypop1 <- 0.9 #number in pop.1 who stay in pop.1
+staypop2 <- 0.8
+poptotal <- n1 + n2 #will use this to determine population at a given time set
+
+
+#need for-loop to start at time 2 bc we already have time 1
+#i is the index for different time steps
+
+for(i in 2:tsp){
+  n1[i] <- (n1[i-1]*(1 + r1)*(staypop1)) + (n2[i-1]*(1+r2)*(immpop2))
+  n2[i] <-(n2[i-1]*(1 + r2)*(staypop2)) + (n1[i-1]*(1+r1)*(immpop1))
+  poptotal[i] <- n1[i] + n2[i]
+} #n1 is a vector, so you always want to use [] to store numbers or fill them, where as () indicates a function or equation
+
+
+#b)	Determine the size of population 1 and 2 in year 50 (0.5 Pt)
+n1[50]
+n2[50]
+
+#c)	Calculate the size of the metapopulation in year 50 (0.5 Pt)
+n1[50] + n2[50]
+
+```
+
+##Question 3: Plotting population trajectories (10 Pts)
+
+a)	In R, make a plot of total population size against time steps, using the plot() function. Set the "type" argument to produce a line ("l"); use the "xlab" and "ylab" arguments to label your axes. To properly produce the full plot, you will also have to include the following argument in the plot() command: ylim=c(0,80). This will force the y axis to be displayed in the range from 0 to 80. (5 Pts)
+
+```{r}
+poptotal
+time.index <- 1:tsp
+plot(time.index, poptotal, xlab = "Years", ylab = "Total Population", type = "l", ylim=c(0,80))
+
+```
+
+
+
+b)	Now, using the points() command, add the trajectories of the two subpopulations to the plot. In lab we used points() to add a single point (defined by one x and one y value) to a plot, but you can also use that command to add multiple points (i.e., multiple pairs of x and y values). Use the "type" argument to produce a line, just as you did under a). Note that because you are adding two sets of population sizes, you need to execute the points() command twice, once for each subpopulation. Within the points() command, use the "col" argument to give each subpopulation a different color (some colors that R recognizes: red, green, blue, grey). (5 Pts)
+```{r}
+plot(time.index, poptotal, xlab = "Years", ylab = "Total Population", type = "l", ylim=c(0,80))
+points(time.index, n1, col="blue")
+points(time.index, n2, col="red")
+```
+
