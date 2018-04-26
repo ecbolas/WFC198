@@ -1,0 +1,224 @@
+---
+title: "WFC198_Lab4"
+author: "Ellie Bolas"
+date: "April 24, 2018"
+output: html_document
+---
+
+#DISTANCE SAMPLING & HIERARCHICAL MODELING
+
+
+
+#Basic Principles:
+-detection declines as you increase in distance away from transect/point. w = width of transect
+-detection function: probability of detection based on distance from transect, p=1 at transect itself. area under curve = mu, effective half-width
+
+#Hierarchical distance sampling
+-unconditional detection probability
+P = mu/w
+-observations n at each transect j
+nj ~ Binomial 
+
+lambda= abundance model
+sigma = detection model
+
+#Set-Up
+```{r}
+getwd()
+library(unmarked)
+```
+
+
+##Basic Detection Function Models
+
+#Half-normal: describes decline in detection with distance governed by scale parameter sigma
+```{r}
+sigma <- 50
+dist <- seq(0,100,1)
+
+#caluclating p (p=g(x)) at each distance, using the info about how to calculate g(x)
+p <- exp(-((dist^2)/(2*sigma^2)))
+head(p)
+
+#plot probability against distance, always put x first
+plot(dist, p, type = "l", ylim=c(0,1), xlab= "Distance", ylab= "Probability")
+
+
+#repeating but changing the scale parameter and see how detection function changes
+sigma2 <- 30
+p2 <- exp(-((dist^2)/(2*sigma2^2)))
+
+sigma3 <- 70
+p3 <- exp(-((dist^2)/(2*sigma3^2)))
+
+#plot all 3
+plot(dist, p, type = "l", ylim=c(0,1), xlab= "Distance", ylab= "Probability")
+lines(dist, p2, col = "green")
+lines(dist, p3, col = "blue")
+#changing sigma changes the sharpness of the curve, increasing sigma makes it flatter
+#you can estimate sigma against covariates and then pick the best fit
+
+```
+
+#Hazard Function
+```{r}
+sigma.haz <- 50
+b <- 2 #b is a parameter that is estimated for the hazard function
+
+#remember that probability = g(x), use a different g(x) formula here, the one for hazard functions
+
+phaz<- 1- exp(-(dist/sigma.haz)^-b)
+head(phaz)
+plot(dist, phaz, type = "l", xlab = "Distance", ylab = "Probability", ylim= c(0,1))
+
+#change b parameter, see what happens
+
+b2<-1
+b3<-5
+phaz2<-1- exp(-(dist/sigma.haz)^-b2)
+phaz3<- 1- exp(-(dist/sigma.haz)^-b3)
+
+plot(dist, phaz, type = "l", xlab = "Distance", ylab = "Probability", ylim= c(0,1))
+lines(dist, phaz2, col = "green")
+lines(dist, phaz3, col ="red")
+
+#increase b, longer flat and then steeper decline
+
+```
+
+
+#Island Scrub Jay Hierchical Models
+
+Exploring df
+```{r}
+#data comes with unmarked package, issj
+?issj
+str(issj)
+
+#issj uses 3 distance bins
+sum(issj[, "issj[0-100]"]) #tells you how many detections in that bin distance, subestting just that column from the df
+
+summary(issj$elevation) #tells you min, max, mean for that covariate
+
+```
+
+#Formatting data for unmarked
+unmarked uses a special df for input data
+```{r}
+
+umf <- unmarkedFrameDS(y = as.matrix(issj[,1:3]), #y is detection data, specified that for issj, we want the first 3 columns from the original data frame, when you lead with a comma in front of the columns, that means all rows in the following columns
+                       siteCovs = data.frame(scale(issj[,6:8])), #need to give site covariates which are in columns 6-8 (elevation, ahparral, and forest)
+                       dist.breaks = c(0,100, 200,300), #we have o define what the bins of our discrete distances are, which the data tell us
+                       unitsIn = "m", survey= "point") #units is meters, survey is that we have a survey point (compared to transect)
+
+
+summary(umf)
+```
+
+#distsamp() function
+formula has two components, the detection parameter and the abundance, have to define covariates for each model
+```{r}
+
+#half normal model, simple intercept only model
+hn <- distsamp(~1~1, umf, keyfun = "halfnorm", output = "density", units = "ha")
+#can set output to density or abundance
+#~1~1 means no covariates on detection or abundance
+
+summary(hn) #returns info on log scale
+
+backTransform(hn, type = "state") #turn it back to normal scale of density estimates, animals per hectare
+backTransform(hn, type = "det") #turn it back to normal for detection estimates, returns the sigma estimate that shapes the function given the data for the half normal detection fxn
+
+#hazard fxn
+hz <- distsamp(~1~1, umf, keyfun = "hazard", output = "density", units = "ha")
+summary(hz)
+backTransform(hz, type = "state") #density
+backTransform(hz, type = "det") #47 is sigma estimate
+
+```
+
+
+#Compare Models
+```{r}
+#fitList() used to compare models
+dsfitlist <- fitList(hn, hz) #ignore warning
+modSel(dsfitlist)
+#returns AIC delta, AICwt if you are doing modeling average
+#hazard model is the more likely model, given our parameters
+
+
+hn@estimates #tells you estimates on log scale
+```
+
+#How use Covariates to model data
+Add chaparral to abundance
+```{r}
+#modeling abundnance on chaparal, assumes abundance influenced by chaparal, but not detection
+#choose model covariates on what you think is real
+hazchap <- distsamp(~1~chaparral, umf, keyfun = "hazard", output = "density", unitsOut = "ha")
+
+hazchap
+#            Estimate     SE     z  P(>|z|)
+#(Intercept)   -1.743 0.7286 -2.39 1.67e-02 this is beta0
+#chaparral      0.451 0.0703  6.42 1.38e-10 this is beta1 
+
+#chaparal has a positive slope and is highly significant, effect size is .45 (on log scale), there will be a unit increase in jays
+#this is actually a glm, it's basically a poisson regression within this framework
+#log(lambga) = B0 + B1*x
+
+
+#you can add multiple covariates to each piece of the model with "+" or "*" for an interaction term, i.e. hazchap <- distsamp(~1~chaparral + elevation, umf, keyfun = "hazard", output = "density", unitsOut = "ha")
+
+#now you can use parameter estimates from model to calculate expected abundance for different values of chaparral cover
+#lod(lambda) = .769
+
+
+
+#use parameter estimates to calculate expected log(density), then backTransform
+predchap <- predict(hazchap, "state")
+head(predchap)
+
+#plot density against chaparal, but first sort predictions in ascending order
+
+s.in <- order(issj$chaparral)
+head(s.in) #tells you the ranking of each entry, still can use the index of orders
+
+#use this order for both
+plot(issj$chaparral[s.in], predchap[s.in, 1], type = "l", xlab = "Chaparral", ylab = "Exp. Abundance") #need this to help make lengths the same
+
+
+
+```
+
+
+Add chaparral to detection, then compare
+```{r}
+
+hazchap2 <- distsamp(~chaparral~1, umf, keyfun = "hazard", output = "density", unitsOut = "ha") #intercept only for abundance
+
+hazchap2
+
+dsfitlist2 <- fitList(hazchap, hazchap2)
+modSel(dsfitlist2)
+
+#so the top ranking model is that chaparral impacts abundance
+
+```
+
+
+#Testing other Covariates with hazard detection fxn on abundance and detection
+```{r}
+#elevation on abundance
+hazelev <- distsamp(~1~elevation, umf, keyfun = "hazard", output = "density", unitsOut = "ha") #poisson regression on density, elevation covariate has no affect on animals abundance, parameters are not significant
+
+#detection model
+hazelev2<- distsamp(~elevation~1, umf, keyfun = "hazard", output = "density", unitsOut = "ha") #here modeling sigma based on elevation
+
+dsfitlistall <- fitList(hazelev, hazelev2, hz)
+modSel(dsfitlistall)
+
+```
+
+
+For half-normal function, returns a parameter extimating sigma, can make a vector of distances, then estimate the probability of detection across a variety of distance options
+

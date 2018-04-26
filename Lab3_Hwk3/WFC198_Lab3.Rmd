@@ -147,7 +147,7 @@ head(birddata)
 mod3 <- glm(Detected~Burned, data = birddata, family = "binomial")
 summary(mod3)
 #beta0 = 2.2
-#slop= 0.2, is no significant, p value >0.05
+#slope= 0.2, is no significant, p value >0.05
 
 #parameteres on link function scale, need to back-transform to undestand things on probabiliy scale
 #logit(p) in burned = intercept + slope

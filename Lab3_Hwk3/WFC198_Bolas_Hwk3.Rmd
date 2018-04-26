@@ -1,26 +1,171 @@
 ---
-title: "WFC198_Bolas_Hwk3"
+title: "WFC198_Bolas_Hwk3_logistic_and_poisson"
 author: "Ellie Bolas"
 date: "April 23, 2018"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ##Logitistic Regressions Homework
+Remember: Logistic Regression: relationship with the predictor variable (x) is modeled on the success probability (expected value) of the Bernoulli random variable (y).
+
+logit(pi) = beta0 + beta1xi
+Y ~ Binomial(pi) #bernoulli is a special case of binomial. A binomial with one attempt = bernoulli. Y is predicted by the binomial distribution of pi
+pi = *expected value* of a Bernoulli random variable/occurence probability
+Y = actual observations, response, 0 or 1
+xi = *predictor*
+beta0 + beta1xi = *linear predictor*
+p is between 0 or 1, we need to transform it to infinite so we can model predicors, use logit link
+
+logistic regression will return the maximum likelihood parameter estimates for beta0 and beta1 on a logit scale, returns estimates of how x affects logit(p). Then, back-transform
+
+back-transform:  pi = (exp(logit(pi)))/(exp(logit(pi))+1)
 ==============================================
 
-Task 1: Simulating logistic regression data: Simulate data for a logistic regression with one predictor variable
+##Task 1: Simulating logistic regression data: Simulate data for a logistic regression with one predictor variable
 
 a)	The intercept of the linear predictor is -0.2 (that is, minus 0.2); the slope (describing the effect of covariate X) is 1.3. The sample size (number of data points) is 30. (1 Pt)
 ```{r}
 
-beta0 <- (-0.2) #intercept
-beta1 <- 1.3 #slope
-n <- 30 #sample size
+beta0 <- (-0.2) #intercept, logi(p) when x = 0
+beta1 <- 1.3 #slope, effect of x on logit(p)
+n <- 30 #sample size, number of observations
 ```
 
 b)	The predictor variable, X, comes from a uniform distribution with lower limit -1 (that is, minus 1) and upper limit 1. (1 Pt)
+```{r}
+#runif generates uniform distribution.uniform distribution means any variable between -1 and 1. need to tell is n=number of observations and the upper and lower limits of the distribution
 
+x <- runif(n, -1, 1) #put in paramters of min=-1, max=1, this is some kind of continuous variable, take 30 samples from this distribution
+
+```
 
 
 c)	Calculate the expected values both on the logit and on the response (i.e., probability) scale (2 Pts)
+
+```{r}
+#to calculate expected values on logit scale, l.p=logit(p)
+
+l.p <- beta0 + beta1*x #bc x is a vector, then l.p returns a string for each possible x
+
+#p=probability, applying the inverse of the logit here to get rid of the log to put it on a probability scale, y depends on p
+p <- exp(l.p)/(exp(l.p) + 1)
+p #just checking that this is between 0 and 1
+
+```
+
+
 d)	Use the rbinom() function to generate the response variable Y. Note that you need to specify three arguments in rbinom(): how many observations to generate (n), the number of Bernoulli trials for each of these observations (which is 1, because each data point in a logistic regression is Binary), and the probability (ie, expected value on the natural scale). Use ?rbinom for more help. (2 Pts).
+```{r}
+#generate Bernoulli random variables for y
+#need to find the probability of success for each trial, use n=number of trials, p=vector of probabilities (p), size=number of trials per observation
+
+y <- rbinom(n, 1, p) #will create a vector of y for each value of p, vector is all 0s and 1s
+
+```
+
+##Task 2: Analyzing data from Task 1 
+
+a)	As we have done in lab, analyze the data you generated under Q1 using logistic regression. Include the covariate in your model. Make sure your “knitted” report shows the summary output from your model* (2 Pts)
+```{r}
+#make a model
+lrmod <-glm(y~x, family = "binomial")
+summary(lrmod)
+#logit(pi) = -0.5615 + 0.9287x
+
+```
+
+
+b)	Calculate the differences between the parameter estimates and the true input parameters, and save these differences in a numerical vector. Make sure your “knitted” report shows the values in the numerical vector*. TIP: you can use the coefficients() function to extract parameter estimates from a model object (2 Pts)
+```{r}
+predict.par <- coef(lrmod) #pulled the coefficients from the model
+predict.par
+
+true.par <- c(beta0, beta1) #true parameters
+diff <- (predict.par-true.par)
+diff #difference between extimates and true parameters
+```
+
+
+c)	Generate expected values of Y on the link scale (ie., the logit scale) based on the model fit under a) for a sequence of values of X ranging from -1 to 1 at intervals of 0.2. (2 Pts)
+```{r}
+newx<- data.frame(x = seq(-1,1, 0.2)) #making new data with new x values
+
+#generate expected y's
+exp.y <- predict.glm(object = lrmod, newdata =newx, type = "link", se.fit = TRUE ) #response returns data on the scale of the response variable, so a default binmoial model returns probabilities on the logit sclae, "response" returns predicted probabilities (automatically back transforms)
+
+exp.y # "fit" is the name of the expected y vectors, "se.fit"" are the standard errors
+
+```
+
+
+d)	Plot these expected values against the sequence of values of X generated in c). Appropriately label your axes. (2 Pts)
+```{r}
+plot(newx$x, exp.y$fit, main = "Linear Regression Plot", xlab = "X Values", ylab = "Expected Y Values") #pulls the x values out of the df, and the expected y values
+
+#not sure if the plot should be a line plot:
+plot(newx$x, exp.y$fit, main = "Linear Regression Plot", xlab = "X Values", ylab = "Expected Y Values", type = "l")
+
+```
+
+##Task 3: Analyzing Poisson regression data 
+
+The data file “HW3data.csv” contains two columns, “Species”, showing the number of bird species detected at a given site (response variable, count), and “Quality”, and index of habitat quality at that site (predictor variable), where higher numbers indicate higher quality. 
+
+a)	Read the data file into R and perform a Poisson regression (with the covariate) on the data (2 Pts)
+```{r}
+getwd()
+birddat <- read.csv("HW3data.csv")
+head(birddat)
+poismod <- glm(Species~Quality, data= birddat, family = "poisson")
+summary(poismod)
+#intercept: 1.1422, slope: 0.2672
+
+```
+
+b)	Generate expected values of Y on the response scale based on the model fit under a) for a sequence of habitat quality values, ranging from the minimum observed quality to the maximum observed quality, at intervals of 0.1 (2 Pts)
+```{r}
+
+#need to generate a new set of x based on the min and max of the original data
+
+minbird <- min(birddat$Quality)
+maxbird <- max(birddat$Quality)
+#newx2 <- data.frame(z = seq(minbird, maxbird, 0.1)) here, bc I re-named the column z, predict.glm got confused and couldn't find the Quality variable. Use the same variable name throughout
+newx2 <- data.frame(Quality = seq(minbird, maxbird, 0.1))
+newx2 #this will give us the expected values for the full length of x, gives a more complete sequence
+
+#now calculate expected y on response scale
+exp.y2 <- predict.glm(object=poismod, newdata= newx2, type = "response", se.fit =T)
+exp.y2 
+  
+```
+
+c)	Plot these expected values against the range of habitat quality values generated in b). Adjust the y axis to range from 0 to 7 using the ylim argument**. Label your axes appropriately. (2 Pts).
+```{r}
+#remember that "fit" is the expected y values
+plot(newx2$Quality, exp.y2$fit, main = "Habitat Quality Impacts on Bird Species", xlab = "Habitat Quality", ylab = "Expected Bird Species", ylim = c(0,7))
+
+#should it be a line?
+plot(newx2$Quality, exp.y2$fit, main = "Habitat Quality Impacts on Bird Species", xlab = "Habitat Quality", ylab = "Expected Bird Species", ylim = c(0,7), type = "l")
+
+```
+
+
+d)	Add the observations to the plot generated in c). (1 Pt)
+```{r}
+plot(newx2$Quality, exp.y2$fit, main = "Habitat Quality Impacts on Bird Species", xlab = "Habitat Quality", ylab = "Bird Species", ylim = c(0,7), type = "l") #plotted model as a line, data as points
+points(birddat$Quality, birddat$Species, col = "green")
+
+```
+
+##Question 5 (not an R question): (4 Pts)
+Interpret the results from the Poisson regression in Q3. In 2-3 sentences, quantitatively*** describe the effect of the predictor variable on the response variable (both direction and magnitude; use units); what the null hypothesis is in this context, which decision you make about the null hypothesis, based on what part of the results. 
+Type your answer into your R script; remember to comment it out, since it is not code! Please use line breaks, rather than writing everything into one very long line.
+**By that I mean, it is not enough to say the effect is positive or negative, strong or weak, you need to use the parameter estimate in your description, and explain what that number means in the context of this example.
+
+##Answer:
+
+The null hypotheses is that there is no relationship between habitat quality and number of bird species present. However, data indicate that habitat quality has a positive relationship (0.2672) with number of bird species present that is highly significant (p = 0.00147). This means that the null hypothesis can be be rejected, and we can conclude that increased habitat quality yields increased abundance of bird species. 
+
+
