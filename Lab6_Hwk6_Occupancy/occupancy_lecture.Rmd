@@ -1,0 +1,86 @@
+---
+title: "occupancy_lecture"
+author: "Ellie Bolas"
+date: "May 3, 2018"
+output: html_document
+---
+```{r}
+library(unmarked)
+
+data(frogs) #loads multiple objects in workspace
+
+str(pfer.bin) #detection data for frogs, 130 sites for 3 visits, these entries are the binary observations yjk
+
+#detection covariates, always in a matrix
+str(pfer.data) #holds "variable" which are the covariates used in analysis, X.pjk, covariate that varies with site and visit, these can be used to explain why detection might vary
+#"MinAfterSunset" "Wind" "Sky" "Temperature"
+
+head(pfer.data[,,"Wind"]) #bc data is 3D, need 2 commas here
+#the numbers in the obsNum columns are the observed values, the rows are each a site (visit 1 at site 1 had wind, no wind on visit 2, NA for visit 3 means that site wasn't visited a 3rd time)
+
+#occupancy covariates will be a vector, single obserrvation per site
+
+obs.covs<- list(Wind = pfer.data[,,"Wind"],
+               Temp=pfer.data[,,"Temperature"])
+
+pferUMF <- unmarkedFrameOccu(pfer.bin, siteCovs = NULL, obsCovs = obs.covs)
+
+#first part of formula refers to detection, second part of formula refers to state component (occupancy) 
+#here we have 1 for occu, it's the intercept only model
+mod0 <- occu(~1~1, pferUMF) 
+#here logit(occuu prob) = beta0, logit(pjk) = alpha0 + alpha1*Temp, pjk= detection prob
+
+#outcome of model is probability of succcess, probability of observing a 1
+#occupancy probability tells you whether the site is in state 1, occupied
+#occupancy prob. is the expected value for the state, the higher occupancy pro, the more likely the site is occupied
+#higher detection prob means more likely to have a 1 for detection
+
+modT <- occu(~Temp~1, pferUMF)
+modW <- occu(~Wind~1, pferUMF)
+modTW <- occu(~Temp + Wind ~1, pferUMF)
+
+fms <- fitList(mod0=mod0, modT=modT, modW=modW, modTW=modTW)
+modSel(fms)
+
+#AIC: simplest model and how well model fits actual data, principle of parsimony that does both
+#in this case the model that fits the variation in detection and occupancy the best, with the fewest parameters
+
+#table shows number of paramters, doesn't tell you best fit
+
+#modT is an important predictor for detection prob.
+
+
+summary(modT)
+#occupancy component
+#Occupancy (logit-scale):
+# Estimate   SE     z P(>|z|)
+#     6.49 20.9 0.311   0.756      on logit scale, so need to backTransform
+plogis(6.49) # 0.9984838 actual probability of occupancy, basically everything is occupied
+
+#if they treat their data as presence=absence, they find frogs at 30% of sites (number of sites frogs were found at/total number of sites), so they were really missing the frogs
+
+#number of predictor variables: the more variates to try out, the more likely you see something with spurious effects that are due to correlation not causation
+#if you have binary data (logging or no), make a dummy variable of 0 or 1
+#if you have categorical, logging, grazing, then make each category as a binary variable
+
+#detection component
+#Detection (logit-scale):
+#            Estimate     SE     z  P(>|z|)
+#(Intercept)    1.409 0.4704  3.00 2.74e-03
+#Temp          -0.239 0.0364 -6.56 5.53e-11
+#when temperature (x) is 0, logit(detec prob)(y) is 1.409
+#-0.239 effect of temperature on detection. for every increase in temperature, there is a -.239 decrease in the logit of detection
+#at 16 degrees, detection prob. was .02, calculated by:
+#inverse logit(1.4-.02 * temp). put in 16 degrees for temp, backTransform, get detection prob at that temp. This explains why they missed so many frogs in their surveys
+
+predict(modT, "state")
+predict(modT, "det")
+
+#use paramter estimates with any value of temperature you are interested in to calculate logit(detect prob) then backTransform to figure out detection prob at each temp. maybe this is because they like cooler temperatures?
+
+
+
+```
+
+
+

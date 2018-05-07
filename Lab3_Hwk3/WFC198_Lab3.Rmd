@@ -139,9 +139,9 @@ Relationship with repdictor variable is modeled on the expected value(success pr
 
 ```{r}
 getwd()
-birddata <- read.csv("WFC198/Lab3_Hwk3/BirdsBurn.csv")
+birddata <- read.csv("BirdsBurn.csv")
 head(birddata)
-#burned column is 0's and 1's
+#burned column is 0's and 1's (so is detected)
 
 #y data is Detected column, x data is Burned column, can use this in making glm
 mod3 <- glm(Detected~Burned, data = birddata, family = "binomial")

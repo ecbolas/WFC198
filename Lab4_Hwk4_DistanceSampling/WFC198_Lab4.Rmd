@@ -32,6 +32,8 @@ library(unmarked)
 ##Basic Detection Function Models
 
 #Half-normal: describes decline in detection with distance governed by scale parameter sigma
+g(x) = exp(-(x^2)/(2*sigma^2))
+detection probability p = g(x) at each distance
 ```{r}
 sigma <- 50
 dist <- seq(0,100,1)
@@ -61,8 +63,9 @@ lines(dist, p3, col = "blue")
 ```
 
 #Hazard Function
+p = g(x) = 1-exp(-(x/sigma)^-b)
 ```{r}
-sigma.haz <- 50
+sigma.haz <- 50 #sigma is the scale parameter that captures decline in detection with distance
 b <- 2 #b is a parameter that is estimated for the hazard function
 
 #remember that probability = g(x), use a different g(x) formula here, the one for hazard functions
@@ -108,7 +111,7 @@ unmarked uses a special df for input data
 
 umf <- unmarkedFrameDS(y = as.matrix(issj[,1:3]), #y is detection data, specified that for issj, we want the first 3 columns from the original data frame, when you lead with a comma in front of the columns, that means all rows in the following columns
                        siteCovs = data.frame(scale(issj[,6:8])), #need to give site covariates which are in columns 6-8 (elevation, ahparral, and forest)
-                       dist.breaks = c(0,100, 200,300), #we have o define what the bins of our discrete distances are, which the data tell us
+                       dist.breaks = c(0,100, 200,300), #we have to define what the bins of our discrete distances are, which the data tell us
                        unitsIn = "m", survey= "point") #units is meters, survey is that we have a survey point (compared to transect)
 
 

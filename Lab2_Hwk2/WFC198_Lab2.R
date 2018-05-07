@@ -44,7 +44,8 @@ which(is.na(dat$weight)) #tells you speicifically which elements are missing dat
 #new df that excludes the two missing rows
 missing <- which(is.na(dat$weight)) #you can select any column here, creates an object with the rows that are missing
 
-dat2 <- dat[-missing,] #means subset everything except for the missing object, MAKE SURE THAT COMMA IS THERE so it knows, "cut these rows"
+dat2 <- dat[-missing,] #means subset everything except for the missing object, MAKE SURE THAT COMMA IS THERE so it knows "cut these rows" and all the columns that go with
+
 which(is.na(dat2))
 dat2
 

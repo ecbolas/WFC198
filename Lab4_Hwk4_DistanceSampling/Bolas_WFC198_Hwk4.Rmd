@@ -1,0 +1,193 @@
+---
+title: "Bolas_WFC198_Hwk4"
+author: "Ellie Bolas"
+date: "April 30, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+setwd("C:/Users/ebola/Google Drive/Git/WFC198_Git/WFC198/Lab4_Hwk4_DistanceSampling")
+```
+
+##Distance Sampling
+-data set of rabbits, sampled over 4 transects, 2 in good habitat and two in poor habitat
+-The data has 4 rows, corresponding to the four transects. The first 28 columns (column names X1 through X28) of the data are the number of rabbit detections in 28 5-m distance intervals. Column number 29, named “hab”, holds a binary variable coding habitat quality; 1 stands for good habitat, 0 stands for poor habitat. The last column, named “tlength”, provides the length of each transect. 
+
+##Task 1: Data summary statistics (3 Pts)
+a)	Read the data into R (1 Pt)
+```{r}
+library(unmarked)
+
+getwd()
+rabbit<- read.csv("RabbitDSData.csv")
+
+```
+
+
+b)	Calculate the total number of rabbit detections across all distances and transects (1 Pt)
+
+```{r}
+
+#remember for subsetting its [rows,columns]
+
+allrabbits<-sum(rabbit[,c(1:28)]) #means sum all rows and columns 1-28
+allrabbits
+
+```
+
+
+c)	Calculate the number of rabbits detected in good habitat and in poor habitat (1 Pts)
+```{r}
+#good habitat is the first two rows with 1, poor is the second two rows with 0
+#good habitat
+goodrabbits<-sum(rabbit[c(1:2), c(1:28)])
+goodrabbits
+
+
+#poor habitat
+poorrabbits <-allrabbits-goodrabbits
+poorrabbits
+```
+
+##Task 2: Creating the unmarkedFrame (6 Pts)
+a)	For the next step (2b) you need the distance breaks, so set up a numeric vector that holds the 5-m distance breaks for the 28 distance categories, starting at 0m and going out to 140m. (2 Pts) 
+```{r}
+#doing this bc for unmarked, distances have to be binned into discrete distance classes
+distr <- seq(0, 140, 5)
+length(distr) #returns 29, which is actually necessary for the unmarkedFrame
+
+```
+
+
+b)	Use the unmarkedFrameDS() function to get the data into the right format for analysis with the distsamp() function. Use the R help and the R script from the Distance sampling lab for a reminder of how to specify the function arguments. Remember: this is line transect data, and distances are measured in meters. Also, we have a categorical covariate (good vs bad habitat) here, which should not be scaled. We need to specify one additional argument (compared to what we did in lab), and that is transect length. The argument to do that within the unmarkedFrameDS() function is “tlength”. Transect length has to be provided in the form of a vector; lengths of the four transects are stored in the column “tlength”, so in the unamrkedFrameDS() functions, set tlength=DataObject$tlength [note: use the name of the object holding the rabbit data in place of “DataObject”]. (4 Pts)
+
+```{r}
+umfr <- unmarkedFrameDS(y = as.matrix(rabbit[,1:28]), #y is detection data, makes an RxJ matrix. R is number of sites/transects (all rows bc each row is one transect), J is number of distance classes, so that's the first 28 columns
+                       siteCovs = data.frame(rabbit$hab), #this is the site covariates which is just poor/good habitat, so all rows and one column. However, when I put it in like rabbit[,29] it was hard to pull out this covariate later, so now I'm just telling it this column
+                       dist.breaks = distr, #distance breaks is a vector J+1, so it's ok that what we made previously had 29 slots
+                       tlength= rabbit$tlength, 
+                       survey = "line",
+                       unitsIn = "m"
+                       )
+
+summary(umfr)
+
+#I think the following code is identifcal to above, in terms of getting the habitat variable in, but using the below just in case
+
+hab <- data.frame(hab = rabbit[,29])
+
+umfrb <- unmarkedFrameDS(y = as.matrix(rabbit[,1:28]), #y is detection data, makes an RxJ matrix. R is number of sites/transects (all rows bc each row is one transect), J is number of distance classes, so that's the first 28 columns
+                       siteCovs = data.frame(hab), #this is the site covariates which is just poor/good habitat, so all rows and one column. However, when I put it in like rabbit[,29] it was hard to pull out this covariate later, so now I'm just telling it this column
+                       dist.breaks = distr, #distance breaks is a vector J+1, so it's ok that what we made previously had 29 slots
+                       tlength= rabbit$tlength, 
+                       survey = "line",
+                       unitsIn = "m"
+                       )
+
+summary(umfrb)
+
+```
+
+##Task 3: Fitting distance sampling models (8 Pts)
+a)	Fit the following six models: (i) no covariates on detection or abundance, with a half-normal detection function; (ii) no covariates on detection or abundance, with a hazard detection function; (iii) habitat as a covariate on abundance, with a half-normal detection function; (iv) habitat as a covariate on abundance, with a hazard detection function; (v) habitat as a covariate on detection, with a half-normal detection function; (vi) habitat as a covariate on detection, with a hazard detection function (6 pts)
+
+ ~1~1: no covariates on detection or abundance 
+ ~X~1: covariate X on detection, none on abundance 
+ ~1~X: no covariate on detection, X on abundance 
+
+```{r}
+#i) half normal, no covariates
+hn <- distsamp(~1~1, umfrb, keyfun = "halfnorm", output = "density", units = "ha")
+summary(hn) #returns info on log scale
+
+#ii) hazard, no covariates
+hz <- distsamp(~1~1, umfrb, keyfun = "hazard", output = "density", units = "ha")
+summary(hz)
+
+#iii) half normal, habitat covariate on abundance
+hn_hab_abun <- distsamp(~1~hab, umfrb, keyfun = "halfnorm", output = "density", units = "ha") 
+summary(hn_hab_abun)
+
+#iv) hazard, habitat covariate on abundance
+hz_hab_abun <- distsamp(~1~hab, umfrb, keyfun = "hazard", output = "density", units = "ha")
+summary(hz_hab_abun)
+
+#v) half normal, habitat on detection
+hn_hab_det<- distsamp(~hab~1, umfrb, keyfun = "halfnorm", output = "density", units = "ha")
+
+#vi) hazard, habitat on detection
+hz_hab_det <- distsamp(~hab~1, umfrb, keyfun = "hazard", output = "density", units = "ha")
+
+
+```
+
+
+b)	Using AIC, determine the best model out of the six models fit under a (make sure your knitted report shows the model selection table). (2 Pts)
+```{r}
+#fit list to compare models, just list all models by name
+rabbitfl <- fitList(hn, hz, hn_hab_abun, hz_hab_abun, hn_hab_det, hz_hab_det)
+rabbit_modsel<-modSel(rabbitfl)
+rabbit_modsel
+#best model is habitat as a covariate on abundance as a hazard function
+
+```
+
+
+
+##Task 4: Results interpretation (10 Pts)
+a)	Produce a model summary for the best model as selected under 3b (1 Pt)
+```{r}
+
+summary(hz_hab_abun)
+
+```
+
+b)	For that same model, and using the appropriate R command, calculate rabbit density in good and in poor habitat. Note: calculate density on the real scale, not the link scale! Make sure your knitted report shows the code as well as the numeric result of the calculation (2 Pts)
+```{r}
+
+#use parameter estimates to calculate expected log(density) then backTransform, predict does both for you
+#log(lambda) = beta0 + beta1*x
+#log(lambda) = -0.240 + 0.884*x is good habitat
+#log(lambda) = -0.240 is poor habitat
+
+pred.hab <- predict(hz_hab_abun, "state") #state means transform to natural state
+pred.hab #this returns a prediction for each row, so both the good and poor habitat density predictions (second two rows are poor habitat in original df)
+
+```
+
+
+c)	What is the ecological interpretation of these quantities? Write a short answer into your R script that contains the estimates (with standard errors) produced under 4b – remember to comment out anything that is not a command! (2Pts)
+
+A: Habitat has a positive relationship with abundance that is statistically significant. In a unit of good habitat, there is an effect size of 1.9 increase in rabbits, with a standard error of 0.29. In a unit of poor habitat, there is only a 0.79 increase in rabbits, with a standard error of 0.13. 
+
+d)	Plot the detection function for the best model over a range of distances from 0 to 140 m. Tip: We developed code to plot a detection function early on in the Distance sampling lab. In that code, you need to specify the parameters of the detection function as they were estimated by the best model. Remember to back-transform model estimates to the real scale. Specify distances at 1-m intervals. Label your axes. (5 Pts)
+
+```{r}
+# Hazard fxn formula
+#p = g(x) = 1-exp(-(x/sigma)^-b)
+#need scale paramter sigma and shape parameter b to plot detection. summary(hz_hn_abun) returns those parameters on the log scale, so we need to back transform
+
+names(hz_hab_abun)
+#need to back transform all the detection function info to get paramters for plotting
+
+shape.b <- backTransform(hz_hab_abun, type = "det") # gives shape parameter b
+shape.b #35
+
+scale.sigma <- backTransform(hz_hab_abun, type = "scale") #gives scale parameter sigma
+scale.sigma #3.43
+
+b.r<- 35
+sigmahaz <- 3.43
+distz <- seq(1,140) #made new distance on 1 m scale
+
+#formula for 
+dethaz <-1- exp(-(distz/sigmahaz)^-b.r) #formula for detection probability on real scale
+head(dethaz)
+
+
+plot(distz, dethaz, type = "l", xlab = "Distance", ylab = "Probability of Detection", ylim= c(0,1))
+
+```
+
+

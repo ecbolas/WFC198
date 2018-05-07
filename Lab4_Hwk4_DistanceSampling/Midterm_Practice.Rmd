@@ -1,0 +1,291 @@
+---
+title: "Midterm_Practice"
+author: "Ellie Bolas"
+date: "April 30, 2018"
+output: html_document
+---
+
+#HWK 1
+a)	Create a vector of numbers from 5 to 10 and call it ‘numbers’
+b)	Using the appropriate function, determine the length of that vector
+c)	Create a second vector of numbers from 3 to 8, call it ‘numbers2’, and subtract the elements in ‘numbers2’ from the element in ‘numbers’
+d)	Using the appropriate function, calculate the sum of ‘numbers’
+
+```{r}
+num <- c(5:10)
+length(num)
+num2<- c(3:8)
+num-num2
+sum(num)
+
+
+```
+
+a)	Create a character vector with the names of four of your friends; call it ‘friends’
+b)	Select only the first element of that vector and assign it to a variable ‘nam’ (use subsetting to select the first element)
+c)	Find out what type of variable ‘nam’ is
+d)	Select the second and fourth element of ‘friends’ (use subsetting to select these elements)
+```{r}
+f<- c("a", "b", "c", "d")
+f[1]
+nam<- f[1]
+class(nam)
+nam
+
+f[c(2,4)]
+
+
+```
+
+a)	Use the following line of code to set up a matrix: (0.5 Pts)
+mat<-matrix(data = c(2,1,1,5,3,9,0,4,2,6,6,8), nrow = 3, ncol = 4)
+b)	Using an appropriate function, determine the dimensions (i.e., number of rows and number of columns) of ‘mat’ (0.5 Pts)
+c)	Name the rows of ‘mat’; ‘R1’ for row 1, ‘R2’ for row 2, and so on (1 Pt)
+d)	Name the columns of ‘mat’: ‘C1’ for column 1, ‘C2’ for column 2, and so on (1 Pt)
+e)	Calculate the sum of the second row of mat; use the appropriate function that calculates summaries of numerical vectors in combination with matrix sub-setting. (1 Pt)
+f)	Calculate the mean of the third column of ‘mat’ use the appropriate function that calculates summaries of numerical vectors in combination with matrix sub-setting. (1 Pt)
+
+Task 6 (4 Pts):
+a)	Create a numerical vector called ‘Rnew’ and add it as a new row to ‘mat’ (matrix form Question 5). Use whatever numbers you like but make sure it has the right length! Call the resulting new matrix ‘mat2’
+b)	Create a numerical vector called “Cnew” and add is as a new column to ‘mat2’. Use whatever numbers you like but make sure it has the right length! Call the resulting new matrix ‘mat3’
+
+```{r}
+mat<-matrix(data = c(2,1,1,5,3,9,0,4,2,6,6,8), nrow = 3, ncol = 4)
+dim(mat)
+rownames(mat) <- c("r1", "r2", "r3")
+
+
+colnames(mat) <- c("c1", "c2", "c3", "c4")
+#fix
+sum(mat[2,])
+
+mean(mat[,3])
+
+rnew <- c(3,4,5,6)
+mat2<- rbind(mat, rnew)
+cnew<- c(2,3,4)
+
+mat2<- cbind(mat, cnew)
+
+```
+
+a)	Read in “Homework1.csv”, call the resulting data frame ‘dfr’ (0.5 Pts)
+b)	Look at the top few rows of ‘dfr’ (0.5 Pts)
+c)	Extract the column names from ‘dfr’ (0.5 Pts)
+d)	Determine the types of variables in the columns of ‘dfr’ (1 Pt)
+e)	Create a new object, ‘Height’, and assign it the column from ‘dfr’ that is called ‘Height.cm’ (1 Pt)
+f)	Extract the third element of the column from ‘dfr’ that is called ‘Length’ (0.5 Pts)
+```{r}
+getwd()
+df<- read.csv("Hwk1_Lab1/Homework1.csv")
+
+head(df)
+
+colnames(df)
+structure(df)
+summary(df)
+
+class(df$Individual)
+df$Length
+
+#fix
+Height <- df$Height.cm
+Height
+df
+
+```
+
+a)	Create a list object that contains (in this order) the data frame from Task 7, the matrix from Task 5, and the character vector from Task 4; call the object ‘lst’.
+b)	Add the numerical variable x from Task 2 to that list (the new list should also be called ‘lst’)
+c)	Determine the type and dimensions of all elements in the list with a single R command
+d)	Using list sub-setting, select the third element of ‘lst’
+e)	Calculate the sum of the second element of ‘lst’
+```{r}
+x<- c(1,2,3)
+
+lst <- list(data.frame=df, matrix=mat2, cvector=f)
+str(lst)
+
+lst <- list(lst, x)
+lst
+str(lst)
+summary(lst)
+dim(lst)
+lst[,3]
+
+```
+
+
+#HWK 2
+
+
+a)	Using the appropriate R command, calculate the sum of all elements in the vector (note: do not use arithmetic operators, use a single command) (1 Pt)
+b)	Using appropriate R commands, determine the number of elements in this vector that are not NA (2 Pts)
+c)	Create a new vector, vec2, that is a subset of vec, specifically, that contains the first five non-NA elements of vec. Do so using subsetting and R commands. (2 Pts) 
+```{r}
+vec<-c(0,NA,NA,9,13,5,6,7,17,NA,3,19,2,NA,12)
+sum(na.omit(vec))
+
+(length(vec))-length(na.omit(vec)) #returns number of na's
+
+#fix
+vec1.a <- na.exclude(vec)
+vec2 <- vec1.a[1:5]
+vec3<-head((na.exclude(vec)), 5)
+
+
+```
+	Translate these mathematical expressions into R code and combine them with a for-loop to simulate the size of population 1 and 2 for 50 time steps. To do so, follow the same general steps we used in lab to simulate an age-structured population. Use the following input parameters and starting population sizes (9 Pts):
+N1 at time 1: 20
+N2 at time 1: 50
+r1: -0.1
+r2: 0.1
+pi_1,2: 0.1
+pi_2,1: 0.2
+	Determine the size of population 1 and 2 in year 50 (0.5 Pt)
+	Calculate the size of the metapopulation in year 50 (0.5 Pt)
+	
+```{r}
+
+
+r1 <- -0.1 #per capita rate chance for n1
+r2 <- 0.1
+t<- 50
+npop1 <- rep(NA, t)
+npop2 <- rep(NA, t)
+npop1[1] <- 20
+npop2[1] <-50
+ntot <- npop1 + npop2
+pi12 <- 0.1 #proportion of n1 that goes to n2
+pi21 <- 0.2
+finaln1 <- NULL
+finaln2 <- NULL
+
+for(i in 2:t) {
+  npop1[i]<- npop1[i-1]*(1+r1)*(1-pi12) + npop2[i-1]*(1+r2)*pi21
+  npop2[i]<- npop2[i-1] * (1+r2) * (1-pi21) + npop1[i-1]*(1+r1)*pi12
+  ntot[i] <- npop1[i] + npop2[i] 
+}
+
+
+npop1[50] #27.8
+npop2[50] #22.75
+ntot[50] #50.57
+
+index <- 1:t
+plot(x=index, y=ntot, type ="l", ylim=c(0,80) )
+points(npop1, type = "l")
+
+```
+
+#HWK3
+
+#Logistic = binomial
+Simulate data for a logistic regression with one predictor variable
+
+a)	The intercept of the linear predictor is -0.2 (that is, minus 0.2); the slope (describing the effect of covariate X) is 1.3. The sample size (number of data points) is 30. (1 Pt)
+```{r}
+beta0 <- -0.2
+beta1 <- 1.3
+n<-30
+
+
+```
+
+
+b)	The predictor variable, X, comes from a uniform distribution with lower limit -1 (that is, minus 1) and upper limit 1. (1 Pt)
+```{r}
+x <- runif(n, min = -1, max = 1)
+
+```
+
+
+
+c)	Calculate the expected values both on the logit and on the response (i.e., probability) scale (2 Pts)
+```{r}
+#binomial
+lp <- beta0 + beta1*x #expected ys on logit scale
+
+p <- exp(lp)/(exp(lp) +1)
+p
+
+```
+
+
+d)	Use the rbinom() function to generate the response variable Y. Note that you need to specify three arguments in rbinom(): how many observations to generate (n), the number of Bernoulli trials for each of these observations (which is 1, because each data point in a logistic regression is Binary), and the probability (ie, expected value on the natural scale). Use ?rbinom for more help. (2 Pts).
+```{r}
+y <- rbinom(n, 1, p)
+y
+  
+  
+```
+a)	As we have done in lab, analyze the data you generated under Q1 using logistic regression. Include the covariate in your model. Make sure your “knitted” report shows the summary output from your model* (2 Pts)
+```{r}
+
+mod <- glm(y~x, family = "binomial")
+summary(mod)
+
+
+```
+
+
+b)	Calculate the differences between the parameter estimates and the true input parameters, and save these differences in a numerical vector. Make sure your “knitted” report shows the values in the numerical vector*. TIP: you can use the coefficients() function to extract parameter estimates from a model object (2 Pts)
+
+```{r}
+est<- coef(mod)
+est
+real <- c(beta0, beta1)
+
+abs(est-real)
+
+```
+
+c)	Generate expected values of Y on the link scale (ie., the logit scale) based on the model fit under a) for a sequence of values of X ranging from -1 to 1 at intervals of 0.2. (2 Pts)
+d)	Plot these expected values against the sequence of values of X generated in c). Appropriately label your axes. (2 Pts)
+
+```{r}
+
+xnew <- data.frame(x=seq(-1,1,0.2))
+xnew
+exp.ynew <- predict.glm(object=mod, newdata = xnew, type = "link", se.fit=T)
+
+
+plot(x=xnew$x, y=exp.ynew$fit, type = "l")
+
+```
+
+The data file “HW3data.csv” contains two columns, “Species”, showing the number of bird species detected at a given site (response variable, count), and “Quality”, and index of habitat quality at that site (predictor variable), where higher numbers indicate higher quality. 
+a)	Read the data file into R and perform a Poisson regression (with the covariate) on the data (2 Pts)
+```{r}
+getwd()
+bird<- read.csv("Lab3_Hwk3/HW3data.csv")
+
+pmod <- glm(Species~Quality, data = bird, family = "poisson")
+
+```
+
+
+
+b)	Generate expected values of Y on the response scale based on the model fit under a) for a sequence of habitat quality values, ranging from the minimum observed quality to the maximum observed quality, at intervals of 0.1 (2 Pts)
+```{r}
+
+min(bird$Quality)
+
+xnew2 <- data.frame( Quality= seq(min(bird$Quality), max(bird$Quality), 0.1))
+
+exp.y <- predict.glm(object = pmod, newdata = xnew2, type = "response", se.fit = T)
+exp.y
+
+
+plot(xnew2$Quality, exp.y$fit, type = "l")
+
+```
+
+
+
+c)	Plot these expected values against the range of habitat quality values generated in b). Adjust the y axis to range from 0 to 7 using the ylim argument**. Label your axes appropriately. (2 Pts).
+d)	Add the observations to the plot generated in c). (1 Pt)
+
+
+
+
