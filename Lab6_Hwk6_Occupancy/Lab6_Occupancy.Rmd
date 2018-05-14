@@ -1,0 +1,184 @@
+---
+title: "Lab6_Occupancy"
+author: "Ellie Bolas"
+date: "May 8, 2018"
+output: html_document
+---
+
+##Occupancy
+-Do you detect a species or not (detected, yjk = 1)
+-true occupancy at a site j is zj
+-a site is occupied with a probability of psi, zj ~ Bernoulli (psij)
+-occupancy probability modeled as binomial, logit (psij) = beta0 + beta1 * X.psij
+-detection probability, yjk ~ Bernoulli (pjk * zj)
+
+```{r}
+library(unmarked)
+```
+
+
+Study: Willow Tits from Swiss Bird Survey
+Sample unit: 1 km^2 quadrat surveyed 2-3 times, each survey walked variable lengths, surveys happeed over a 100 day period
+
+#read in data
+```{r}
+getwd()
+dat <- read.csv("wtmatrix.csv")
+head(dat)
+
+
+```
+
+-y.1, y.2 observations for each site, each row is a site, elev and forest are those covariates for each site, day.1, day.2 is day of the year (this may effect detection, since they sing earlier in the year), length (this may effect detection because the further you walk, the more you may detect them), ignore c.1
+
+#Create unmarkedFrame occu object
+```{r}
+obs <- dat[,c("y.1", "y.2", "y.3")] #pull out only observation columns
+class(obs) #data.frame, need to transform into a matrix
+obs <- as.matrix(obs)
+class(obs)
+
+site_covs <- data.frame(elev=dat[,c("elev")], forest = dat[,"forest"], length = dat[,"length"]) #write it like this to get the names you want on the columns, makes it easier to call variables by their names
+
+#make a data frame in a list object, need a list because we have multiple occasion covs
+#occasion_covs <- list(data.frame(day1 = dat[,"day.1"], day2 = dat[,"day.2"], day3 = dat[,"day.3"]))
+#head(occasion_covs[[1]]) looks the same as below, just more work
+
+occasioncovs <-list(day=dat[,c("day.1", "day.2", "day.3")])
+head(occasioncovs[[1]])
+
+
+umfo <- unmarkedFrameOccu(y=obs, siteCovs = site_covs, obsCovs = occasioncovs)
+summary(umfo)
+
+```
+
+
+```{r}
+summary(umfo)
+
+#how many sites? occasions?
+dim(obs) #237 rows is number of sites, number of columns = number of occasions
+
+#range elevation values
+range(dat$elev)
+range(site_covs$elev)
+
+```
+
+#raw occupancy
+find whether species were detected at least once at each site
+-doing a function (fun) over all rows (margin) in matrix (x)
+-will give us occupancy state for each row
+ apply(X, MARGIN, FUN)
+ 
+```{r}
+obs.total <- apply(obs, 1, sum, na.rm = T)
+obs.total #gives you a vector of numbers (0,1,2,3) each element of the vector is the sum of over 3 survey occasions for that row of whether you detected the species. The range is 0:3 because you can either detect 0,1,2,3 times
+
+
+#use obs.total to calculate number of sites where species was detected at least once
+#need to know which elements have detections, then sum those
+
+which(obs.total >0) #returns the site numbers, the index of elements
+detections <-length(which(obs.total >0)) #use length instead of sum because it's an index, tells you how many sites had at least one detection
+
+#naive occupancy: # sites with detection /total number of sites, ignores imperfect detection
+detections/(length(obs.total)) #0.3333333 this is 33% occupancy
+```
+
+#Occupancy, fitting the model
+-use occu function
+occu(formula, data) 
+formula= ~detection~occupancy
+data= umfo
+
+```{r}
+mod0 <- occu(~1~1, data= umfo)
+summary(mod0)
+
+```
+Occupancy (logit-scale):
+ Estimate    SE     z  P(>|z|)
+   -0.665 0.139 -4.77 1.82e-06
+
+Detection (logit-scale):
+ Estimate    SE    z  P(>|z|)
+     1.32 0.174 7.61 2.82e-14
+     
+In both cases it's a logistic regression
+
+occupancy model: (intercept only)
+logit(psi) = beta0 for intercept only model = logit(-0.665)
+
+detection model: (intercept only)
+logit(pjk) = beta 0 = logit(1.32)
+-remember detection is conditional on whether it's occupied
+
+#backtransform
+plogis is backtransform of logit scale
+can also use backTransform, but *only works with intercept only model*
+backTransform, type = state or type = det
+if you have covariates, use predict function
+```{r}
+plogis(-0.665) #0.3396173, similar to raw occupancy estimate. similar probably because our detection probability is .789, which is high
+plogis(1.32) #0.7891817
+
+backTransform(mod0, "det") #advantage here is that it calculates SE on the real scale for you
+backTransform(mod0, "state")
+
+```
+
+#covariate occu models
+formula= ~detection~occupancy
+```{r}
+#elevation on occurence and lenth on detection
+mod.elev_length <- occu(~length~elev, data= umfo)
+summary(mod.elev_length)
+```
+For occupancy Model:
+intercept = logit(prob. occupancy) = -3.38 if elevation is 0
+elev covariate= slope= every unit increase in elevation, expect a logit(.0025) increase in occupancy
+increase in elevation, increase the probability that willow tits occupy site
+
+detection model:
+intercept: if someone is just standing there (0 length), then detection prob on logit scale is 1.281
+slope: for each meter we walk, the logit(detection prob) increases by 0.51. length that you walk does have a significant effect on detecting the species
+
+#plot
+create new data with a range of values for the covariates, put into new df
+```{r}
+#new elevation
+summary(umfo) #to get in and max of elevation
+elevnew <- data.frame(elev = seq(250,2750, 10)) #needs to be df or use min(dat$elev) make sure new column has the same name as the original model
+
+#need to use predict (not back transform) to get predicted occupancy with new elevation strand
+pred.psi <- predict(mod.elev_length, newdata = elevnew, "state") #backtransforms, spits things out in df
+head(pred.psi)
+#can also do this by hand
+#logitpsi <- -3.38 + 0.0025*elevnew$elev
+#exp.psi <- plogis(logitpsi) then plug this in to plot
+
+
+#plot predictions
+plot(elevnew$elev, pred.psi$Predicted, type = "l", xlab = "Elevation", ylab = "Occupancy Probability", ylim = c(0,1))
+#then some code to add SE bars
+
+```
+
+#now new df with length
+```{r}
+new.length <- data.frame(length = seq(min(dat$length), max(dat$length), 0.1))
+
+logitp <- -1.71 + 0.51*new.length$length
+exp.p <- plogis(logitp)
+#check notes for how to do this with predcit function
+
+
+plot(new.length$length, exp.p, type = "l" )
+
+
+
+
+```
+

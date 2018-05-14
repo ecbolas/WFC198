@@ -1,0 +1,165 @@
+---
+title: "Bolas_Hwk6_Occupancy"
+author: "Ellie Bolas"
+date: "May 10, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+#Occupancy Modeling
+
+Data for this homework assignment are located on Canvas, in the file “flycatcher data.csv”. Species detection/non-detection data (columns “y.1” to “y.3”) were collected on American fly catchers at 50 sites, each visited 3 times. For each site, the amount of woody habitat (as a percentage) was recorded (column “woody” in the data frame). For each survey, the Julian date (day of the year, where 0 = January 1) was also collected (columns “date.1” to “date.3” in the data frame). 
+
+##Task 1: Reading in and formatting data (5 Pts)
+Read the data into R and use them to create an unmarkedFrameOccu object with detections, site covariates and observation covariates. Tip: Site covariates are those that have a single value for each site. Observation covariates are those that have a value for each site and visit. 
+```{r}
+library(unmarked)
+getwd()
+dat <- read.csv("Flycatcher_data.csv")
+
+#need 3 arguments
+#det df is the detection/non-detection data by site
+det <- data.frame(dat[, c("y.1", "y.2", "y.3")])
+
+#siteCovs is any covariates that vary by site (usually habiat stuff)
+site_covs <- data.frame(woody = dat$woody) #need to give the column head or else it returns dat.woody for column head
+
+#obsCovs is covariates that vary within sites by visit, have to make this as a list for some reason, making it as a df made the column headers strange
+obs_covs <- list(date = dat[, c("date.1", "date.2", "date.3")]) 
+head(obs_covs[[1]])
+
+
+umffly <- unmarkedFrameOccu(y=det, siteCovs = site_covs, obsCovs = obs_covs)
+summary(umffly)
+```
+
+##Task 2: Raw occupancy (5 Points)
+Calculate raw occupancy (percentage of sites where species was observed at least once) – make sure your “knitted” report contains both the R code and the value for raw occupancy. 
+
+```{r}
+#naive occupancy: # sites with at least one detection /total number of sites, ignores imperfect detection
+
+#two ways to do this:
+
+#1)
+summary(umffly)
+#output includes: Sites with at least one detection: 34 
+rawoccu <-34/50
+rawoccu
+
+#doing this with R code as in lab
+# apply(X, MARGIN, FUN)
+#x = det df, margin = how many rows at a time, fun= sum bc each row is being summed
+totalobs <- apply(det, 1, sum, na.rm = T)
+totalobs #gives you a vector of numbers (0,1,2,3) each element of the vector is the sum of the 3 survey occasions for that row of whether you detected the species. The range is 0:3 because you can either detect 0,1,2,3 times
+
+detections <-length(which(totalobs >0)) #use length instead of sum because it's an index, tells you how many sites had at least one detection
+
+rawoccu2 <- detections/(length(totalobs))
+rawoccu2
+
+#Both methods return 0.68, 68% raw occupancy
+
+```
+
+#Task 3: Running occupancy models (10 Pts)
+a)	Run all possible models (meaning, models representing all possible covariate combinations). Tip 1: there are 8 models total. Tip 2: Remember that site covariates can be used for both the detection and occupancy components of the model, whereas observation covariates can only be used for the detection component. (8 Pts) Note: Producing summaries for some of the models will result in a warning message. You can ignore that message. 
+
+occu(formula, data) 
+formula= ~detection~occupancy
+data= umffly
+
+```{r}
+
+#intercept-only/null model
+mod0 <- occu(~1~1, data= umffly)
+summary(mod0)
+
+#woody cover on detection
+modwoodydet <- occu(~woody~1, data = umffly)
+summary(modwoodydet)
+
+#woody cover on occupancy
+modwoodyoccu <- occu(~1~woody, data = umffly)
+summary(modwoodyoccu)
+
+#woody cover on both
+modwoody <- occu(~woody~woody, data = umffly)
+summary(modwoody)
+
+#date on det
+moddatedet <- occu(~date~1, data = umffly)
+summary(moddatedet)
+
+#date on det, woody on occu
+moddatewoody <- occu(~date~woody, data = umffly)
+summary(moddatewoody)
+
+#date and woody on det
+moddatewoodydet <- occu(~date+woody~1, data = umffly)
+summary(moddatewoodydet)
+
+#date and woody on det and woody on occu
+modall <- occu(~date+woody~woody, data = umffly)
+summary(modall)
+
+
+```
+
+
+b)	Compare all models based on their AIC using the appropriate R commands (make sure that your “knitted” report shows the model selection table) (2 Pt)
+Note: Producing the model selection table will cause a warning message. You can ignore that message.
+```{r}
+
+fitlist <- fitList(mod0, modwoodydet, modwoodyoccu, modwoody, moddatedet, moddatewoody, moddatewoodydet, modall) #we always get that warning, just ignore
+
+modselection <- modSel(fitlist)
+modselection
+
+#modall is the top model and moddatewoody is within 2
+
+```
+
+#Task 4: Plotting covariate relationships (5 Pts)
+Plot the relationship of occupancy with the covariate in the top model from Task 3 c. In your plot, use the “ylim” argument to set the range of your y axis from 0 to 1. Label your axes. Tip: To make this plot, first create a sequence of possible values for the covariate (be careful: the covariate is a percentage so can only take on certain values); then use the predict() function to calculate expected values of occupancy for these new covariate values. 
+ATTENTION: The predict() function does not always work – that seems to depend on the version of unmarked that you have installed on your computer. If it does not work, manually calculate the predicted values of occupancy probability, psi, based on the parameter estimates from the top model from Task 3c, and plot those values (remember to back-transform) against the new covariate values. Code for both options is in the lab R script.
+
+```{r}
+summary(modall)
+#occupancy influenced by woody cover which is a percentage, first making a new cov for woody with all possible percentages. the percentages are as whole numbers
+woodynew<-data.frame(woody = seq(0,100,1))
+head(woodynew)
+
+#use the predict() function to calculate expected values of occupancy for these new covariate values
+
+occuwoody <- predict(modall, newdata = woodynew, "state")
+head(occuwoody)
+
+#plot x by y
+plot(woodynew$woody,occuwoody$Predicted, type = "l", xlab = "Percent Woody Cover", ylab = "Predicted Occupancy", ylim = c(0,1))
+
+```
+
+#Task 5: Interpreting model output (10 Pts)
+Look at the summary results of the top model from Task 3c (make sure the summary output is included in your “knitted” report) to address the following tasks. Add answers into your R script but make sure to comment them out.
+```{r}
+summary(modall)
+modall_summary <- summary(modall)
+modall_summary
+```
+
+a)	In words, describe the relationship(s) between occupancy probability and the covariate(s) in the top model. Your statement should contain the appropriate number(s) form the model output, as well as appropriate units. Your statement should also address whether the relationship(s) are statistically significant, and on which number in the output your answer is based. (4 Pts)
+
+*Answer*
+When there is 0% woody cover, the predicted occupancy is the logit(-1.4926 +/- 0.8665) (the intercept of the output for the occupancy model). This is not statistically significant, because the p value is greater than 0.05 (p=0.8499). For every 1% increase in woody cover, there is a logit(0.0966 +/- 0.0364) increase in predicted occupancy of flycatchers at a site. This is based on the slope in the occupancy model. Also, this relationship is statistically significcant because p = 0.00792, less than 0.05.
+
+
+b)	In words, describe the relationship(s) between detection probability and the covariate(s) in the top model. Your statement should contain the appropriate number(s) form the model output, as well as appropriate units. Your statement should also address whether the relationship(s) are statistically significant, and on which number in the output your answer is based. (6 Pts)
+
+*Answer*
+When there is 0% woody cover and the survey day = 0 (Jan. 1), the detection probability is logit(1.0642 +/- 0.8315) (the intercept of the detection model). This is not statistically significant because p = 0.20057, which is greater than 0.05. For every 1 day past Jan 1st, there is a logit(-0.0590 +/- 0.0186) decrease in detection probability for flycatchers (the first slope listed in the detection model). This relationship is statistically significant because p = 0.00151. For every 1% increase in wood cover, detection probability of flycatchers inreases by logit(0.0236 +/- 0.0138) (the second slope in the detection model.) However, this relationship is not statistically significant because p = 0.08861. 
+
+
+
+
+

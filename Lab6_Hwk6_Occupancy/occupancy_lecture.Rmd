@@ -29,6 +29,7 @@ pferUMF <- unmarkedFrameOccu(pfer.bin, siteCovs = NULL, obsCovs = obs.covs)
 #here we have 1 for occu, it's the intercept only model
 mod0 <- occu(~1~1, pferUMF) 
 #here logit(occuu prob) = beta0, logit(pjk) = alpha0 + alpha1*Temp, pjk= detection prob
+summary(mod0)
 
 #outcome of model is probability of succcess, probability of observing a 1
 #occupancy probability tells you whether the site is in state 1, occupied
